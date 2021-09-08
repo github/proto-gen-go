@@ -20,13 +20,9 @@
 # TODO(adonovan):
 # - package using curl
 # - tests
-# - make Twirp output optional
 # - test on Linux
 # - support cross-repo proto imports
-# - specify all versions in Dockerfile?
-
-# Docs:
-# - https://twitchtv.github.io/twirp/docs/command_line.html#modifying-imports
+# - specify all versions in Dockerfile
 
 # set -x
 
@@ -68,15 +64,17 @@ for file in $(find * -name \*.proto -print); do
      "$PWD/$file" || { echo "protoc failed"; exit 1; } >&2
 done
 
-# Move the Twirp generated code from the temp dir to the source tree
-# by removing the unwanted module/package prefix.
+# Move the Twirp-generated code (if any) from the temp dir to the
+# source tree by removing the unwanted module/package prefix.
 genroot="$twirp/$module/$package"
-# This check ensures the chdir below doesn't silently fail.
-[ -d "$genroot" ] || { echo "No Twirp output"; exit 1; } >&2
-for file in $(cd "$genroot" >/dev/null >&2 && find * -name \*.go); do
-  mkdir -p $(dirname "$file")
-  mv -f "$twirp/$module/$package/$file" "$file"
-done
+# Ensure the chdir below doesn't silently fail
+# if there were no service declarations.
+if [ -d "$genroot" ]; then
+  for file in $(cd "$genroot" >/dev/null >&2 && find * -name \*.go); do
+    mkdir -p $(dirname "$file")
+    mv -f "$twirp/$module/$package/$file" "$file"
+  done
+fi
 
 exit 0
 
