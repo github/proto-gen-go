@@ -22,7 +22,6 @@
 # - tests
 # - test on Linux
 # - support cross-repo proto imports
-# - specify all versions in Dockerfile
 
 # set -x
 
