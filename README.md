@@ -11,6 +11,6 @@ package proto
 
 The two arguments are the Go module name, and the relative path to the proto directory within the module.
 
-The URL should be expanded out to the stable URL of the raw [gen.sh](https://raw.githubusercontent.com/github/proto-gen-go/main/gen.sh?token=ABLFMPY3D2BDVXPE5X2MJXDBIDJEC) script in this repository. Bear with us---we don't have a nice short URL yet.
+The URL should be expanded out to the token-containing URL of the raw [gen.sh](https://github.com/github/proto-gen-go/blob/main/gen.sh) script in this repository. Bear with us---we don't have a nice short URL yet.
 
 Now, when you run go generate in your proto directory, the script will re-run the protocol compiler on all .proto files, and generate go files into the obvious relative locations. Commit them along with your source code.
