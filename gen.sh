@@ -9,7 +9,7 @@
 #
 # Typical usage: in your project's root proto/ directory, create a Go
 # source file containing a generate command such as this:
-# 
+#
 #    package proto
 #    //go:generate sh -c "curl https://.../gen.sh | bash /dev/stdin github.com/github/example proto"
 #
@@ -48,12 +48,12 @@ echo "Generating Go declarations for protocols in $module/$package:"
 # generate files into a single directory, so we'll use a temporary
 # tree and then flatten it.
 twirp="$PWD"/$(mktemp -d twirp-XXXXXX)
-trap "rm -fr $twirp" EXIT 
+trap "rm -fr $twirp" EXIT
 
-# The explicit PWDs are required to appease protoc's 
+# The explicit PWDs are required to appease protoc's
 # rather sensitive file name expectations.
 #
-# All files in a single protoc invocation must belong 
+# All files in a single protoc invocation must belong
 # to the same proto package, hence the loop.
 for file in $(find * -name \*.proto -print); do
   echo "- compiling $file" >&2
@@ -83,22 +83,13 @@ exit 0
 # This Dockerfile produces an image that runs the protocol compiler
 # to generate Go declarations for messages and Twirp RPC interfaces.
 #
-# It uses the specified versions of Ubuntu and protoc, and the
-# latest versions of go, git, protoc-gen-go, and protoc-gen-twirp. 
-FROM ubuntu:20.10
+# It uses gh-builder-bionic (built from github.com/github/gh-base-image), and the
+# latest versions of go, protoc-gen-go, and protoc-gen-twirp.
+FROM ghcr.io/github/gh-base-image/gh-builder-bionic:latest
 
 WORKDIR /work
 
-RUN apt-get update && \
-    apt-get install -y wget unzip && \
-    wget -O protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.13.0/protoc-3.13.0-linux-x86_64.zip && \
-    unzip protoc.zip -d /usr/local/ && \
-    rm -fr protoc.zip
-
-# git is needed to 'go get' these modules.
-RUN apt-get install -y golang git
-ENV PATH=$PATH:/root/go/bin
-RUN go get google.golang.org/protobuf/cmd/protoc-gen-go \
-           github.com/twitchtv/twirp/protoc-gen-twirp
+RUN go get google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1 \
+           github.com/twitchtv/twirp/protoc-gen-twirp@v8.1.1
 
 ENTRYPOINT ["protoc"]
