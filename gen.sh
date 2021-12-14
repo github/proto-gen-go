@@ -85,7 +85,7 @@ exit 0
 #
 # It uses gh-builder-bionic (built from github.com/github/gh-base-image), and the
 # latest versions of go, protoc-gen-go, and protoc-gen-twirp.
-FROM ghcr.io/github/gh-base-image/gh-builder-bionic:latest
+FROM ghcr.io/github/gh-base-image/gh-builder-bionic:20211214-001229-gfd004f1a1
 
 WORKDIR /work
 
