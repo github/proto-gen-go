@@ -10,6 +10,8 @@ package proto
 //go:generate sh -c "cd .. && go run github.com/github/proto-gen-go@latest"
 ```
 
+(The `go run module@version` command requires Go 1.17 or later.)
+
 Now, when you run `go generate` in your proto directory, the script
 will re-run the protocol compiler on all .proto files, and generate go
 files into the obvious relative locations. Commit them along with your
