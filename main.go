@@ -88,7 +88,6 @@ func main() {
 	// of the docker image, and volume-mount it.
 	cmd = exec.Command("docker", "run", "-v", pwd+":"+pwd, id)
 	cmd.Args = append(cmd.Args, protocArgs...)
-	log.Println(cmd.String())
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stderr
 	if err := cmd.Run(); err != nil {
