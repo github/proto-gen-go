@@ -36,10 +36,12 @@
 // arguments to reference $(pwd).
 //
 // This program uses Docker to ensure maximum reproducibility and
-// minimum side effects.
+// minimum side effects. In particular, thanks to volume mounts, the
+// program can only change files beneath $(pwd); changes outside this
+// tree are not reflected outside the container. And by always running
+// protoc on Linux, we needn't worry about downloading an apporopriate
+// executable.
 package main
-
-// TODO: rename to protoc-docker
 
 import (
 	"bytes"
