@@ -1,13 +1,16 @@
 # proto-gen-go
 
-This tool makes it easy to reliably generate and update Go definitions
-for messages and services defined in .proto files.
+This tool is a thin wrapper around protoc, the protocol compiler. It
+makes it easy to reliably generate and update Go definitions for
+messages and services defined in .proto files. It uses a docker
+container with explicitly versioned dependencies to ensure maximum
+reproducibility and minimum side effects.
 
 In your Go project's proto directory, add a `gen.go` file with the following contents:
 
 ```go
 package proto
-//go:generate sh -c "cd .. && go run github.com/github/proto-gen-go@latest"
+//go:generate sh -c "go run github.com/github/proto-gen-go@latest [protoc flags] [proto files]"
 ```
 
 (The `go run module@version` command requires Go 1.17 or later.)
