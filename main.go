@@ -6,7 +6,7 @@
 //
 // Usage:
 //
-//    $ go run github.com/github/proto-gen-go@latest [protoc-flags] [proto files]
+//    $ go run github.com/github/proto-gen-go@v1.0.0 [flags] [--] [protoc-flags] [proto files]
 //
 // When invoked from build scripts, it is best to use an explicit
 // module version (not 'latest') to ensure build reproducibility.
@@ -15,7 +15,7 @@
 // If you add this special comment to a Go source file in your proto/ directory:
 //
 //    package proto
-//    //go:generate sh -c "go run github.com/github/proto-gen-go@latest ..."
+//    //go:generate sh -c "go run github.com/github/proto-gen-go@v1.0.0 ..."
 //
 // then you'll be able to update your generated code by running this
 // command from the root:
@@ -36,11 +36,14 @@
 // arguments to reference $(pwd).
 //
 // This program uses Docker to ensure maximum reproducibility and
-// minimum side effects. In particular, thanks to volume mounts, the
-// program can only change files beneath $(pwd); changes outside this
-// tree are not reflected outside the container. And by always running
-// protoc on Linux, we needn't worry about downloading an apporopriate
-// executable.
+// minimum side effects. In particular:
+// - Thanks to volume mounts, the program can only change files
+//   beneath $(pwd); changes outside this tree are not reflected
+//   outside the container. If you want the command to write the
+//   generated files outside the proto/ tree, you'll need to use
+//   'cd .. && go run ...' and adjust the flags accordingly.
+// - By always running protoc on Linux, we needn't worry about
+//   downloading an appropriate executable.
 package main
 
 import (
