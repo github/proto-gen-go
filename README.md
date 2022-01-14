@@ -1,5 +1,7 @@
 # proto-gen-go
 
+[![Docker](https://github.com/github/proto-gen-go/actions/workflows/docker.yaml/badge.svg)](https://github.com/github/proto-gen-go/actions/workflows/docker.yaml)
+
 This tool is a thin wrapper around protoc, the protocol compiler. It
 makes it easy to reliably generate and update Go definitions for
 messages and services defined in .proto files. It uses a docker
