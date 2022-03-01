@@ -74,7 +74,6 @@ func main() {
 
 	// Build the protoc container image specified by the Dockerfile.
 	// The docker context is empty.
-	log.Printf("goos=%q goarch=%q", runtime.GOOS, runtime.GOARCH)
 	log.Printf("building protoc container image...")
 	args := []string{"build"}
 	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
