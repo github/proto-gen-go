@@ -18,7 +18,7 @@ RUN apt-get update && \
     unzip protoc.zip -d /usr/local/ && \
     rm -fr protoc.zip
 
-RUN go get google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1 \
-           github.com/twitchtv/twirp/protoc-gen-twirp@v8.1.1+incompatible
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1 && \
+           go install github.com/twitchtv/twirp/protoc-gen-twirp@v8.1.1+incompatible
 
 ENTRYPOINT ["protoc"]
