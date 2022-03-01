@@ -72,9 +72,11 @@ func main() {
 	}
 
 	// Build the protoc container image specified by the Dockerfile.
+	// The dockerized program assumes linux/amd64, and the --platform flag enables
+	// dynamic binary translation on M1 hardware.
 	// The docker context is empty.
 	log.Printf("building protoc container image...")
-	cmd := exec.Command("docker", "build", "-q", "-")
+	cmd := exec.Command("docker", "build", "--platform=linux/amd64", "-q", "-")
 	cmd.Stdin = strings.NewReader(dockerfile)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = new(bytes.Buffer)
@@ -91,7 +93,7 @@ func main() {
 	// Run protoc, in a container.
 	// We assume pwd does not conflict with some critical part
 	// of the docker image, and volume-mount it.
-	cmd = exec.Command("docker", "run", "-v", pwd+":"+pwd, id)
+	cmd = exec.Command("docker", "run", "-v", pwd+":"+pwd, "--platform=linux/amd64", id)
 	cmd.Args = append(cmd.Args, protocArgs...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stderr
