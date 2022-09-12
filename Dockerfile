@@ -13,7 +13,7 @@ FROM golang:1.17.6
 WORKDIR /work
 
 RUN apt-get update && \
-    apt-get install -y unzip && \
+    apt-get install -y unzip=6.0-26+deb11u1 && \
     curl --location --silent -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.19.4/protoc-3.19.4-linux-x86_64.zip && \
     unzip protoc.zip -d /usr/local/ && \
     rm -fr protoc.zip
