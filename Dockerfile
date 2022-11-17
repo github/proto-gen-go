@@ -20,6 +20,6 @@ RUN apt-get update && \
 
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 && \
         go install github.com/twitchtv/twirp/protoc-gen-twirp@v8.1.3+incompatible && \
-        go install github.com/twitchtv/twirp-ruby@v1.9.0
+        go install github.com/twitchtv/twirp-ruby/protoc-gen-twirp_ruby@v1.9.0
 
 ENTRYPOINT ["protoc"]
