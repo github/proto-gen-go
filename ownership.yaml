@@ -1,0 +1,18 @@
+version: 1
+ownership:
+- name: proto-gen-go
+  description: A 'go generate' script to generate Go files from .proto interfaces
+  kind: code
+  tier: 2
+  maintainer: cainejette
+  exec_sponsor: smeirsha
+  team: github/dev-frameworks
+  team_slack: dx-dev-frameworks
+  repo: https://github.com/github/proto-gen-go
+  qos: best_effort
+  sev2:
+    issue: https://github.com/github/proto-gen-go/issues
+    tta: 1 business day
+  sev3:
+    issue: https://github.com/github/proto-gen-go/issues
+    tta: 4 weeks
