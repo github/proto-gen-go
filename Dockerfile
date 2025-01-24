@@ -8,12 +8,12 @@
 # - Go packages (protoc-gen-go and protoc-gen-twirp),
 # - apt packages (unzip).
 
-FROM golang:1.19.1
+FROM golang:1.23
 
 WORKDIR /work
 
 RUN apt-get update && \
-    apt-get install -y unzip=6.0-26+deb11u1 && \
+    apt-get install -y unzip=6.0-28 && \
     curl --location --silent -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v27.2/protoc-27.2-linux-x86_64.zip && \
     unzip protoc.zip -d /usr/local/ && \
     rm -fr protoc.zip
