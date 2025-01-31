@@ -6,7 +6,7 @@
 //
 // Usage:
 //
-//    $ go run github.com/github/proto-gen-go@v1.0.0 [flags] [--] [protoc-flags] [proto files]
+//    $ go run github.com/github/proto-gen-go@<version> [flags] [--] [protoc-flags] [proto files]
 //
 // When invoked from build scripts, it is best to use an explicit
 // module version (not 'latest') to ensure build reproducibility.
@@ -15,7 +15,7 @@
 // If you add this special comment to a Go source file in your proto/ directory:
 //
 //    package proto
-//    //go:generate sh -c "go run github.com/github/proto-gen-go@v1.0.0 ..."
+//    //go:generate sh -c "go run github.com/github/proto-gen-go@<version> ..."
 //
 // then you'll be able to update your generated code by running this
 // command from the root:
