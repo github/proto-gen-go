@@ -12,10 +12,10 @@ In your Go project's proto directory, add a `gen.go` file with the following con
 
 ```go
 package proto
-//go:generate sh -c "go run github.com/github/proto-gen-go@v1.4.0 [flags] [--] [protoc flags] [proto files]"
+//go:generate sh -c "go run github.com/github/proto-gen-go@<version> [flags] [--] [protoc flags] [proto files]"
 ```
 
-(The `go run module@version` command requires Go 1.17 or later.)
+(The `go run module@version` command requires Go 1.23 or later.)
 
 Now, when you run `go generate` in your proto directory, the script
 will re-run the protocol compiler on all .proto files, and generate go
