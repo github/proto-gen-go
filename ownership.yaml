@@ -4,7 +4,7 @@ ownership:
   description: A 'go generate' script to generate Go files from .proto interfaces
   kind: code
   tier: 2
-  maintainer: cainejette
+  maintainer: dougnutz
   exec_sponsor: smeirsha
   team: github/dev-frameworks
   team_slack: dx-dev-frameworks
