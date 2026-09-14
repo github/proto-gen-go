@@ -6,14 +6,15 @@
 # - the golang base docker image (linux, go, git),
 # - protoc,
 # - Go packages (protoc-gen-go and protoc-gen-twirp),
-# - apt packages (unzip).
+# - apt packages (unzip; the version pin allows Debian point revisions such
+#   as 6.0-29+deb13u1, which replace the plain 6.0-29 package in the archive).
 
 FROM golang:1.25.12
 
 WORKDIR /work
 
 RUN apt-get update && \
-    apt-get install -y unzip=6.0-29 && \
+    apt-get install -y "unzip=6.0-29*" && \
     curl --location --silent -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v29.3/protoc-29.3-linux-x86_64.zip && \
     unzip protoc.zip -d /usr/local/ && \
     rm -fr protoc.zip
