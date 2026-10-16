@@ -233,7 +233,8 @@ build)
 		id=$(printf 'sha256:%064d' "$$")
 	fi
 	printf '%s\n' "$id" > "$call/image"
-	cp "$call/image" "$FAKE_DOCKER_DIR/image-$4"
+	printf '%s\n' "$id" > "$call/tag"
+	mv -f "$call/tag" "$FAKE_DOCKER_DIR/image-$4"
 	printf '%s\n' "$id"
 	;;
 run)
