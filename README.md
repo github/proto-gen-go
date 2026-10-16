@@ -21,3 +21,14 @@ Now, when you run `go generate` in your proto directory, the script
 will re-run the protocol compiler on all .proto files, and generate go
 files into the obvious relative locations. Commit them along with your
 source code.
+
+The compiler container is automatically removed when it exits, including
+when compilation fails. The tool keeps a local image tagged
+`proto-gen-go:toolchain-<hash>`, keyed by the embedded Dockerfile and the
+`linux/amd64` platform. Repeated invocations reuse that image without
+rebuilding it; a changed toolchain gets a different tag. If the image is
+removed, the next invocation rebuilds it.
+
+Images for older toolchains remain available for reproducible generation.
+The tool does not prune Docker images, build caches, or containers left
+behind by older releases.
