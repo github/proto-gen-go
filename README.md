@@ -29,11 +29,10 @@ when compilation fails. The tool keeps a local image tagged
 rebuilding it; a changed toolchain gets a different tag. If the image is
 removed, the next invocation rebuilds it.
 
-Cold builds are serialized per toolchain across processes using a file lock
-in the current user's cache directory. After acquiring the lock, the tool
-checks the image again so concurrent invocations reuse the first build
-instead of replacing its tag. The operating system releases the lock if
-the process exits; the small lock file is intentionally retained.
+Simultaneous invocations before the image is cached can each build it.
+If those builds produce different image IDs, replacing the shared tag can
+leave an earlier image untagged. Each invocation runs its own build's image
+ID, so tag replacement does not affect generation.
 
 Images for older toolchains remain available for reproducible generation.
 The tool does not prune Docker images, build caches, or containers left
