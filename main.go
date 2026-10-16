@@ -49,12 +49,16 @@ package main
 import (
 	"crypto/sha256"
 	_ "embed"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+
+	"github.com/gofrs/flock"
 )
 
 // dockerfile contains the docker specification for our versioned dependencies
@@ -102,17 +106,35 @@ func run(pwd string, protocArgs []string) error {
 	return nil
 }
 
-func compilerImage(dockerfile string) (string, error) {
-	name := fmt.Sprintf("proto-gen-go:toolchain-%x", sha256.Sum256([]byte(platform+"\n"+dockerfile)))
-	// Listing an absent image succeeds with no output, unlike daemon failures.
-	cmd := exec.Command("docker", "image", "ls", "--quiet", "--no-trunc", name)
-	cmd.Stderr = os.Stderr
-	out, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("docker image lookup failed: %w", err)
+func compilerImage(dockerfile string) (id string, err error) {
+	key := fmt.Sprintf("%x", sha256.Sum256([]byte(platform+"\n"+dockerfile)))
+	name := "proto-gen-go:toolchain-" + key
+	if id, err = localCompilerImage(name); id != "" || err != nil {
+		return id, err
 	}
-	if id := strings.TrimSpace(string(out)); id != "" {
-		return id, nil
+
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return "", fmt.Errorf("locate compiler image lock directory: %w", err)
+	}
+	lockDir := filepath.Join(cacheDir, "proto-gen-go", "locks")
+	if err := os.MkdirAll(lockDir, 0o700); err != nil {
+		return "", fmt.Errorf("create compiler image lock directory: %w", err)
+	}
+	// Keep the file in place so all processes lock the same inode. The OS
+	// releases the lock even if a process exits without running its defers.
+	lock := flock.New(filepath.Join(lockDir, key+".lock"))
+	if err := lock.Lock(); err != nil {
+		return "", fmt.Errorf("lock compiler image: %w", err)
+	}
+	defer func() {
+		if closeErr := lock.Close(); closeErr != nil {
+			err = errors.Join(err, fmt.Errorf("unlock compiler image: %w", closeErr))
+		}
+	}()
+	// Another process may have built the image while we waited for the lock.
+	if id, err = localCompilerImage(name); id != "" || err != nil {
+		return id, err
 	}
 
 	// Build and tag the image only when this toolchain is not cached locally.
@@ -120,16 +142,27 @@ func compilerImage(dockerfile string) (string, error) {
 	// dynamic binary translation on M1 hardware.
 	// The docker context is empty.
 	log.Printf("building protoc container image...")
-	cmd = exec.Command("docker", "build", "--platform="+platform, "--tag", name, "-q", "-")
+	cmd := exec.Command("docker", "build", "--platform="+platform, "--tag", name, "-q", "-")
 	cmd.Stdin = strings.NewReader(dockerfile)
 	cmd.Stderr = os.Stderr
-	out, err = cmd.Output()
+	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("docker build failed: %w", err)
 	}
-	id := strings.TrimSpace(string(out))
+	id = strings.TrimSpace(string(out))
 	if id == "" {
 		return "", fmt.Errorf("docker build returned an empty image ID")
 	}
 	return id, nil
+}
+
+func localCompilerImage(name string) (string, error) {
+	// Listing an absent image succeeds with no output, unlike daemon failures.
+	cmd := exec.Command("docker", "image", "ls", "--quiet", "--no-trunc", name)
+	cmd.Stderr = os.Stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("docker image lookup failed: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
 }

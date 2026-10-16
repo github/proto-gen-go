@@ -1,14 +1,17 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
-	"sync"
 	"testing"
+	"time"
 )
 
 const testImageID = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -24,7 +27,7 @@ func TestRunReusesImage(t *testing.T) {
 	}
 
 	calls := dockerCalls(t, dir)
-	if len(calls["image"]) != 3 || len(calls["build"]) != 1 || len(calls["run"]) != 3 {
+	if len(calls["image"]) != 4 || len(calls["build"]) != 1 || len(calls["run"]) != 3 {
 		t.Fatalf("unexpected Docker calls: %v", calls)
 	}
 	build := calls["build"][0]
@@ -98,6 +101,7 @@ func TestRunFailures(t *testing.T) {
 		want  string
 	}{
 		{"lookup", "docker image lookup failed"},
+		{"recheck", "docker image lookup failed"},
 		{"build", "docker build failed"},
 		{"run", "protoc command failed"},
 	} {
@@ -114,8 +118,18 @@ func TestRunFailures(t *testing.T) {
 				if len(calls["run"]) != 0 {
 					t.Fatal("compiler ran after image lookup/build failed")
 				}
-				if tc.stage == "lookup" && len(calls["build"]) != 0 {
+				if tc.stage != "build" && len(calls["build"]) != 0 {
 					t.Fatal("lookup failure was treated as a missing image")
+				}
+				if tc.stage == "build" {
+					t.Setenv("FAKE_DOCKER_FAIL", "")
+					if err := run(t.TempDir(), []string{"valid.proto"}); err != nil {
+						t.Fatal(err)
+					}
+					calls = dockerCalls(t, dir)
+					if len(calls["build"]) != 2 || len(calls["run"]) != 1 {
+						t.Fatal("failed build prevented retry after releasing the lock")
+					}
 				}
 				return
 			}
@@ -142,43 +156,92 @@ func TestCompilerImageRejectsEmptyBuildOutput(t *testing.T) {
 	}
 }
 
+func TestCompilerImageLockDirectoryFailure(t *testing.T) {
+	dir := fakeDocker(t)
+	if err := os.WriteFile(filepath.Join(dir, "not-a-directory"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", filepath.Join(dir, "not-a-directory"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "not-a-directory"))
+	t.Setenv("LOCALAPPDATA", filepath.Join(dir, "not-a-directory"))
+	if _, err := compilerImage(dockerfile); err == nil || !strings.Contains(err.Error(), "create compiler image lock directory") {
+		t.Fatalf("error = %v, want lock directory error", err)
+	}
+	if calls := dockerCalls(t, dir); len(calls["build"]) != 0 {
+		t.Fatal("image built without acquiring a lock")
+	}
+}
+
 func TestRunConcurrent(t *testing.T) {
 	dir := fakeDocker(t)
-	// Force overlapping cache misses to exercise concurrent tagged builds.
-	t.Setenv("FAKE_DOCKER_CACHE_MISS", "1")
-	pwd := t.TempDir()
-	var wg sync.WaitGroup
-	for range 4 {
-		wg.Go(func() {
-			if err := run(pwd, []string{"messages.proto"}); err != nil {
-				t.Error(err)
-			}
-		})
+	t.Setenv("FAKE_DOCKER_UNIQUE_BUILD_ID", "1")
+	// Each process reports an initial miss before any can build. Any second
+	// build gets a different ID, exposing tag replacement rather than hiding it.
+	binary, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
 	}
-	wg.Wait()
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	const workers = 4
+	var commands []*exec.Cmd
+	var outputs []*bytes.Buffer
+	for i := range workers {
+		cmd := exec.CommandContext(ctx, binary, "-test.run=^TestRunHelperProcess$")
+		cmd.Env = append(os.Environ(),
+			"PROTO_GEN_GO_HELPER=1",
+			fmt.Sprintf("FAKE_DOCKER_WAITERS=%d", workers),
+			fmt.Sprintf("FAKE_DOCKER_FIRST_LOOKUP=%s/first-%d", dir, i),
+		)
+		output := new(bytes.Buffer)
+		cmd.Stdout = output
+		cmd.Stderr = output
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		commands = append(commands, cmd)
+		outputs = append(outputs, output)
+	}
+	for i, cmd := range commands {
+		if err := cmd.Wait(); err != nil {
+			t.Errorf("worker %d failed: %v\n%s", i, err, outputs[i])
+		}
+	}
 	calls := dockerCalls(t, dir)
-	if len(calls["build"]) != 4 || len(calls["run"]) != 4 {
+	if len(calls["build"]) != 1 || len(calls["run"]) != workers {
 		t.Fatalf("unexpected concurrent Docker calls: %v", calls)
 	}
 	name := calls["build"][0][3]
-	for _, build := range calls["build"] {
-		if build[3] != name {
-			t.Errorf("concurrent builds used different tags: %v", calls["build"])
-		}
+	id, err := os.ReadFile(filepath.Join(dir, "image-"+name))
+	if err != nil {
+		t.Fatal(err)
 	}
 	for _, invocation := range calls["run"] {
-		if invocation[1] != "--rm" || invocation[5] != testImageID {
+		if invocation[1] != "--rm" || invocation[5] != strings.TrimSpace(string(id)) {
 			t.Errorf("unexpected concurrent run args: %q", invocation)
 		}
+	}
+}
+
+func TestRunHelperProcess(t *testing.T) {
+	if os.Getenv("PROTO_GEN_GO_HELPER") != "1" {
+		return
+	}
+	if err := run(os.Getenv("FAKE_DOCKER_DIR"), []string{"messages.proto"}); err != nil {
+		t.Fatal(err)
 	}
 }
 
 func fakeDocker(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	t.Setenv("XDG_CACHE_HOME", dir)
+	t.Setenv("LOCALAPPDATA", dir)
 	t.Setenv("FAKE_DOCKER_DIR", dir)
 	t.Setenv("FAKE_DOCKER_FAIL", "")
-	t.Setenv("FAKE_DOCKER_CACHE_MISS", "")
+	t.Setenv("FAKE_DOCKER_FIRST_LOOKUP", "")
+	t.Setenv("FAKE_DOCKER_UNIQUE_BUILD_ID", "")
 	t.Setenv("FAKE_DOCKER_BUILD_ID", testImageID)
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	const script = `#!/bin/sh
@@ -192,8 +255,30 @@ image)
 		echo "image lookup failed" >&2
 		exit 1
 	fi
-	if [ "$FAKE_DOCKER_CACHE_MISS" != 1 ] && [ -f "$FAKE_DOCKER_DIR/image-$5" ]; then
-		printf '%s\n' "$FAKE_DOCKER_BUILD_ID"
+	if [ "$FAKE_DOCKER_FAIL" = recheck ]; then
+		if [ -f "$FAKE_DOCKER_DIR/lookup-complete" ]; then
+			echo "image recheck failed" >&2
+			exit 1
+		fi
+		touch "$FAKE_DOCKER_DIR/lookup-complete"
+	fi
+	if [ -n "$FAKE_DOCKER_FIRST_LOOKUP" ] && mkdir "$FAKE_DOCKER_FIRST_LOOKUP" 2>/dev/null; then
+		touch "$FAKE_DOCKER_DIR/miss-$$"
+		attempt=0
+		while :; do
+			set -- "$FAKE_DOCKER_DIR"/miss-*
+			[ "$#" -eq "$FAKE_DOCKER_WAITERS" ] && break
+			attempt=$((attempt + 1))
+			if [ "$attempt" -ge 500 ]; then
+				echo "timed out waiting for concurrent lookups" >&2
+				exit 1
+			fi
+			sleep 0.01
+		done
+		exit 0
+	fi
+	if [ -f "$FAKE_DOCKER_DIR/image-$5" ]; then
+		cat "$FAKE_DOCKER_DIR/image-$5"
 	fi
 	;;
 build)
@@ -202,8 +287,13 @@ build)
 		echo "build failed" >&2
 		exit 1
 	fi
-	touch "$FAKE_DOCKER_DIR/image-$4"
-	printf '%s\n' "$FAKE_DOCKER_BUILD_ID"
+	id="$FAKE_DOCKER_BUILD_ID"
+	if [ "$FAKE_DOCKER_UNIQUE_BUILD_ID" = 1 ]; then
+		id=$(printf 'sha256:%064d' "$$")
+	fi
+	printf '%s\n' "$id" > "$call/image"
+	cp "$call/image" "$FAKE_DOCKER_DIR/image-$4"
+	printf '%s\n' "$id"
 	;;
 run)
 	if [ "$FAKE_DOCKER_FAIL" = run ]; then
